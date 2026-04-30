@@ -1,5 +1,5 @@
 #############################################################################
-if in your production environment you have problem with install kubernetes components, you may use tunneled ssh connection:
+if your production environment has any problem with install kubernetes components, you may use the tunneled ssh connection:
 sshuttle -r user@a.b.c.d 0.0.0.0/0 -x a.b.c.d  -vv
 where a.b.c.d - is node without problem, a.b.d.d - node ip
 #############################################################################
