@@ -38,13 +38,6 @@ sudo systemctl stop ufw && sudo systemctl disable ufw
 
 reboot    
 
-Install CRI-O:
-sudo curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/Release.key |  sudo gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/deb/ /" | sudo tee /etc/apt/sources.list.d/cri-o.list
-sudo apt update && sudo apt -y install cri-o
-sudo systemctl start crio && sudo systemctl enable crio
-sudo systemctl status crio
-
 Setup containerd:
 sudo apt update
 sudo apt install -y containerd
