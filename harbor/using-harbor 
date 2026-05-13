@@ -1,0 +1,9 @@
+Reference it in a Pod for image pulling:
+
+spec:
+  containers:
+  - name: my-app
+    image: ://yourdomain.com
+  imagePullSecrets:
+  - name: harbor-credentials
+
