@@ -1,0 +1,53 @@
+wget https://github.com/goharbor/harbor/releases/download/v2.13.1/harbor-online-installer-v2.13.1.tgz
+tar xzvf harbor-online-installer-v2.13.1.tgz
+cd harbor
+
+-- tls
+sudo mkdir -p /data/cert/
+
+cd /data/cert
+sudo openssl genrsa -out ca.key 4096
+sudo openssl req -x509 -new -nodes -sha256 -days 3650 \
+  -key ca.key \
+  -out ca.crt \
+  -subj "/CN=yourdomain.com"
+sudo openssl genrsa -out yourdomain.com.key 4096
+sudo openssl req -new -sha256 \
+  -key yourdomain.com.key \
+  -subj "/CN=yourdomain.com" \
+  -out yourdomain.com.csr
+sudo tee extfile.cnf <<EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = yourdomain.com
+EOF
+
+Если вы используете IP-адрес вместо домена, добавьте строку IP.1 = X.X.X.X под разделом [alt_names].
+
+sudo openssl x509 -req -days 3650 -sha256 \
+  -in yourdomain.com.csr \
+  -CA ca.crt -CAkey ca.key -CAcreateserial \
+  -extfile extfile.cnf \
+  -out yourdomain.com.crt
+
+  sudo chmod 600 yourdomain.com.key
+sudo chmod 644 yourdomain.com.crt ca.crt
+
+Теперь файлы yourdomain.com.crt и yourdomain.com.key готовы для прописывания в вашем harbor.yml.
+
+Copy your yourdomain.com.crt and yourdomain.com.key to /data/cert/
+Update harbor.yml: Edit your harbor.yml:
+https:
+  port: 443
+  certificate: /data/cert/yourdomain.com.crt
+  private_key: /data/cert/yourdomain.com.key
+
+sudo docker compose down
+sudo docker compose up -d
+
+-- on your work station:
+ If using self-signed certificates, copy the CA certificate to /etc/docker/certs.d/://yourdomain.com on any machine that needs to push/pull from the registry.
