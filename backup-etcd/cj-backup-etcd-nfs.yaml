@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-etcd
+spec:
+  schedule: "0 */3 * * *" # Use "every minute" for initial testing
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+          - name: certs
+            persistentVolumeClaim:
+              claimName: static-pvc-etcd-certs  # Referencing the static certificate PVC
+          - name: bak
+            persistentVolumeClaim:
+              claimName: static-pvc-etcd-backup  # Referencing the static backup PVC
+          containers:
+          - name: etcd-backup
+            image:  10.4.0.30/mailer/etcd-bak:v1
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+            - name: bak
+              mountPath: /backup
+            env:
+            - name: ETCD_HOST
+              value: "10.4.0.27"  # Your etcd node IP
+            - name: ETCD_PORT
+              value: "2379"
+          restartPolicy: OnFailure

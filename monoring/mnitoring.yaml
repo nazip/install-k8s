@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  grafana:
+    image: grafana/grafana-oss:10.0.3
+    # user: "0"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+    networks:
+      - observ-network
+  prometheus:
+    image:  10.4.0.30/common/prom/prometheus:v2.37.9 
+    user: "0"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      # - ./alerts.yml:/etc/prometheus/alerts.yml
+      - ./prometheus_data:/prometheus
+    networks:
+      - observ-network
+  # alertmanager:
+  #   image: 10.4.0.30/common/bitnami/alertmanager:latest
+  #   ports:
+  #     - "9093:9093"
+  #   environment:
+  #     - TZ=Europe/Moscow
+  #   volumes:
+  #     - ./alertManagerConfig.yml:/opt/bitnami/alertmanager/conf/config.yml
+  #   networks:
+  #     - sbp-network
+networks:
+  observ-network:
+    driver: bridge

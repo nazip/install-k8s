@@ -1,0 +1,2 @@
+-- run on master node to create tunnel to 10.7.5.122 (on 10.7.5.122 should be installed vpn client) 
+sshuttle -r nazip@10.7.5.122 0.0.0.0/0 -x 1.2.3.4  --ssh-cmd 'ssh -4'  -vv

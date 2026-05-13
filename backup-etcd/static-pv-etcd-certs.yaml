@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: static-pv-etcd-certs  # PV Name
+spec:
+  capacity:
+    storage: 1Gi  # Capacity is for identification; does not restrict actual storage
+  accessModes:
+    - ReadOnlyMany  # Read-only, allowing access from multiple nodes
+  persistentVolumeReclaimPolicy: Retain  # Retain data; do not delete files when PVC is deleted
+  nfs:
+    server: 10.4.0.30  # NFS Server IP (as specified in your environment)
+    path: /data/nfs-server/etcd-certs  # Manually created directory for certificates
+  storageClassName: ""  # No StorageClass specified to avoid dynamic provisioning

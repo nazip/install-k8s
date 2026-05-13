@@ -1,0 +1,25 @@
+-- install metallb (for bare metal) https://dev.to/cheulong/expose-the-kubernetes-load-balancer-on-bare-metal-using-metallb-9hh
+(oficial docs: https://metallb.io/installation/)
+
+-- add config for metallb (metallb-config.yaml):
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default-ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 10.4.0.16-10.4.0.17  (ip address range should be in ip address range k8s nodes)
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - default-ip-pool
+
+
+-- do not forget add   type: LoadBalancer (in service  *.yaml file)
+ 

@@ -1,0 +1,54 @@
+=== on nfs server(install nfs) ===
+
+-- install nfs server
+sudo apt update
+sudo apt install nfs-kernel-server -y
+
+-- create nfs share
+sudo mkdir -p /data/nfs-server
+sudo chown nobody:nogroup /data/nfs-server
+sudo chmod -R 777 /data/nfs-server
+
+-- create nfs exports
+add to /etc/exports :
+/data/nfs-server client_IP_address1(rw,sync,no_subtree_check)   client_IP_address2(rw,sync,no_subtree_check)
+
+-- export
+sudo exportfs -a
+sudo systemctl restart nfs-kernel-server
+
+-- turn off ufw
+sudo ufw disable
+
+=== on each client node(mount nfs) ===
+
+-- install nfs client
+sudo apt update
+sudo apt install nfs-common -y
+
+-- mount nfs share
+install -d /data/nfs-server/
+sudo mount -t nfs client_IP_address:/data/nfs-server /data/nfs-server/
+
+=== copy cert files to nfs server ===
+
+cd /data/nfs-server/
+mkdir etcd-certs
+cd etcd-certs
+scp nazip@{master_ip}:/etc/kubernetes/pki/etcd/{ca.crt,peer.crt,peer.key} .
+
+== build docker image ==
+docker build -t etcd-bak:v1 .
+docker save -o etcd-bak.tar etcd-bak:v1
+
+== copy docker image to each node ==
+scp etcd-bak.tar nazip@{master_ip}:
+scp etcd-bak.tar nazip@{worker_ip}:
+
+== load docker image on each node ==
+sudo ctr -n=k8s.io images import etcd-bak.tar
+
+== apply pv and pvc ==
+kubectl apply -f *.yaml
+kubectl apply cj-backup-etcd-nfs.yaml 
+

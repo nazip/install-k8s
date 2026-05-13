@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: static-pv-etcd-backup  # PV Name
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany  # Read-Write, allowing multi-node access
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.4.0.30  # NFS Server IP
+    path: /data/nfs-server/etcd-backup  # Manually created backup directory
+  storageClassName: ""

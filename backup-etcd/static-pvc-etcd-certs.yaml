@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: static-pvc-etcd-certs  # PVC Name
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: static-pv-etcd-certs  # Manually bound to the PV defined above
+  storageClassName: ""  # Must match the PV configuration
