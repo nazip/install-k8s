@@ -7,3 +7,8 @@ spec:
   imagePullSecrets:
   - name: harbor-credentials
 
+
+-- push image from dockerhub to harbor
+docker pull someImage 
+docker tag someImage:someTag 10.4.0.30/choiceDir/someImage:someTag
+docker push 10.4.0.30/choiceDir/someImage:someTag

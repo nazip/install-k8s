@@ -1,0 +1,168 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: clickhouse-pv-0
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes: [ "ReadWriteOnce" ]
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /var/lib/clickhouse/ch-0
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: clickhouse-pv-1
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes: [ "ReadWriteOnce" ]
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /var/lib/clickhouse/ch-1
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: clickhouse-pv-2
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes: [ "ReadWriteOnce" ]
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /var/lib/clickhouse/ch-2
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-server-config
+  namespace: clickhouse-25
+data:
+  zookeeper.xml: |
+    <clickhouse>
+        <zookeeper>
+            <node index="1">
+                <host>clickhouse-keeper-0.keeper-headless.clickhouse-25.svc.cluster.local</host>
+                <port>2181</port>
+            </node>
+            <node index="2">
+                <host>clickhouse-keeper-1.keeper-headless.clickhouse-25.svc.cluster.local</host>
+                <port>2181</port>
+            </node>
+            <node index="3">
+                <host>clickhouse-keeper-2.keeper-headless.clickhouse-25.svc.cluster.local</host>
+                <port>2181</port>
+            </node>
+        </zookeeper>
+    </clickhouse>
+  remote_servers.xml: |
+    <clickhouse>
+        <remote_servers>
+            <ch_cluster>
+                <shard>
+                    <internal_replication>true</internal_replication>
+                    <replica>
+                        <host>clickhouse-server-0.clickhouse-headless.clickhouse-25.svc.cluster.local</host>
+                        <port>9000</port>
+                    </replica>
+                    <replica>
+                        <host>clickhouse-server-1.clickhouse-headless.clickhouse-25.svc.cluster.local</host>
+                        <port>9000</port>
+                    </replica>
+                    <replica>
+                        <host>clickhouse-server-2.clickhouse-headless.clickhouse-25.svc.cluster.local</host>
+                        <port>9000</port>
+                    </replica>
+                </shard>
+            </ch_cluster>
+        </remote_servers>
+    </clickhouse>
+  macros.xml: |
+    <clickhouse>
+        <macros>
+            <cluster>ch_cluster</cluster>
+            <shard>1</shard>
+            <replica from_env="CLICKHOUSE_REPLICA"/>
+            <replica_name>{replica}</replica_name>
+        </macros>
+    </clickhouse>
+  listen.xml: |
+    <clickhouse>
+        <listen_host>0.0.0.0</listen_host>
+    </clickhouse>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-headless
+  namespace: clickhouse-25
+spec:
+  clusterIP: None
+  selector:
+    app: clickhouse-server
+  ports:
+  - name: http
+    port: 8123
+  - name: native
+    port: 9000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clickhouse-server
+  namespace: clickhouse-25
+spec:
+  serviceName: clickhouse-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: clickhouse-server
+  template:
+    metadata:
+      labels:
+        app: clickhouse-server
+    spec:
+      containers:
+      - name: clickhouse-server
+        image: clickhouse/clickhouse-server:25.3
+        env:
+        - name: CLICKHOUSE_REPLICA
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - name: http
+          containerPort: 8123
+        - name: native
+          containerPort: 9000
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/clickhouse-server/config.d/zookeeper.xml
+          subPath: zookeeper.xml
+        - name: config-volume
+          mountPath: /etc/clickhouse-server/config.d/remote_servers.xml
+          subPath: remote_servers.xml
+        - name: config-volume
+          mountPath: /etc/clickhouse-server/config.d/macros.xml
+          subPath: macros.xml
+        - name: config-volume
+          mountPath: /etc/clickhouse-server/config.d/listen.xml
+          subPath: listen.xml
+        - name: ch-data
+          mountPath: /var/lib/clickhouse
+      volumes:
+      - name: config-volume
+        configMap:
+          name: clickhouse-server-config
+  volumeClaimTemplates:
+  - metadata:
+      name: ch-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: ""
+      resources:
+        requests:
+          storage: 50Gi
+

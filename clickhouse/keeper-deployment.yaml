@@ -1,0 +1,165 @@
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: keeper-pv-0
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /var/lib/keeper-data
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: keeper-pv-1
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /var/lib/keeper-data
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: keeper-pv-2
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /var/lib/keeper-data
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keeper-config
+  namespace: clickhouse-25
+data:
+  keeper_config.xml: |
+    <clickhouse>
+        <logger>
+            <level>information</level>
+            <console>1</console>
+            <log remove="remove"/>
+            <errorlog remove="remove"/>
+        </logger>
+        <listen_host>0.0.0.0</listen_host> 
+        <keeper_server>
+            <tcp_port>2181</tcp_port>
+            <server_id from_env="SERVER_ID"/> 
+            <log_storage_path>/mnt/clickhouse/coordination/log</log_storage_path>
+            <snapshot_storage_path>/mnt/clickhouse/coordination/snapshots</snapshot_storage_path>
+            <coordination_settings>
+                <operation_timeout_ms>10000</operation_timeout_ms>
+                <session_timeout_ms>30000</session_timeout_ms>
+                <raft_logs_level>information</raft_logs_level>
+            </coordination_settings>
+            <raft_configuration>
+                <server>
+                    <id>1</id>
+                    <hostname>clickhouse-keeper-0.keeper-headless.clickhouse-25.svc.cluster.local</hostname>
+                    <port>9234</port>
+                </server>
+                <server>
+                    <id>2</id>
+                    <hostname>clickhouse-keeper-1.keeper-headless.clickhouse-25.svc.cluster.local</hostname>
+                    <port>9234</port>
+                </server>
+                <server>
+                    <id>3</id>
+                    <hostname>clickhouse-keeper-2.keeper-headless.clickhouse-25.svc.cluster.local</hostname>
+                    <port>9234</port>
+                </server>
+            </raft_configuration>
+        </keeper_server>
+    </clickhouse>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keeper-headless
+  namespace: clickhouse-25
+spec:
+  clusterIP: None
+  selector:
+    app: clickhouse-keeper
+  ports:
+  - name: client
+    port: 2181
+  - name: raft
+    port: 9234
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clickhouse-keeper
+  namespace: clickhouse-25
+spec:
+  serviceName: keeper-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: clickhouse-keeper
+  template:
+    metadata:
+      labels:
+        app: clickhouse-keeper
+    spec:
+      initContainers:
+      - name: set-server-id
+        image: busybox
+        command: 
+        - sh
+        - -c
+        - |
+          ORDINAL=${HOSTNAME##*-}
+          SERVER_ID=$((ORDINAL+1))
+          echo "SERVER_ID=$SERVER_ID" > /tmp/server_id.env
+          echo "Server ID will be: $SERVER_ID"
+        volumeMounts:
+        - name: server-id
+          mountPath: /tmp
+      containers:
+      - name: keeper
+        image: clickhouse/clickhouse-keeper:25.10
+        command:
+        - sh
+        - -c
+        - |
+          export SERVER_ID=$(cat /tmp/server_id.env | cut -d= -f2)
+          echo "Starting Keeper with SERVER_ID=$SERVER_ID"
+          exec clickhouse-keeper --config-file=/etc/clickhouse-keeper/keeper_config.xml
+        volumeMounts:
+        - name: keeper-config
+          mountPath: /etc/clickhouse-keeper/keeper_config.xml
+          subPath: keeper_config.xml
+        - name: server-id
+          mountPath: /tmp
+        - name: keeper-data
+          mountPath: /mnt/clickhouse
+      volumes:
+      - name: keeper-config
+        configMap:
+          name: keeper-config
+      - name: server-id
+        emptyDir: {}
+  # StatefulSet автоматически свяжет созданные PV с этими PVC
+  volumeClaimTemplates:
+  - metadata:
+      name: keeper-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "" # Оставляем пустым для сопоставления со статическими PV
+      resources:
+        requests:
+          storage: 10Gi
+
