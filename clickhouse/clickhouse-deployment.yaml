@@ -1,3 +1,4 @@
+
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -40,6 +41,17 @@ metadata:
   name: clickhouse-server-config
   namespace: clickhouse-25
 data:
+  prometheus.xml: |
+    <clickhouse>
+        <prometheus>
+            <endpoint>/metrics</endpoint>
+            <port>9363</port>
+            <metrics>1</metrics>
+            <events>1</events>
+            <asynchronous_metrics>1</asynchronous_metrics>
+            <errors>1</errors>
+        </prometheus>
+    </clickhouse>
   zookeeper.xml: |
     <clickhouse>
         <zookeeper>
@@ -64,15 +76,15 @@ data:
                 <shard>
                     <internal_replication>true</internal_replication>
                     <replica>
-                        <host>clickhouse-server-0.clickhouse-headless.clickhouse-25.svc.cluster.local</host>
+                        <host>clickhouse-server-0.clickhouse-headless</host>
                         <port>9000</port>
                     </replica>
                     <replica>
-                        <host>clickhouse-server-1.clickhouse-headless.clickhouse-25.svc.cluster.local</host>
+                        <host>clickhouse-server-1.clickhouse-headless</host>
                         <port>9000</port>
                     </replica>
                     <replica>
-                        <host>clickhouse-server-2.clickhouse-headless.clickhouse-25.svc.cluster.local</host>
+                        <host>clickhouse-server-2.clickhouse-headless</host>
                         <port>9000</port>
                     </replica>
                 </shard>
@@ -91,6 +103,14 @@ data:
   listen.xml: |
     <clickhouse>
         <listen_host>0.0.0.0</listen_host>
+    </clickhouse>
+  users.xml: |
+    <clickhouse>
+        <users>
+            <default>
+                <access_management>1</access_management>
+            </default>
+        </users>
     </clickhouse>
 ---
 apiVersion: v1
@@ -124,6 +144,15 @@ spec:
       labels:
         app: clickhouse-server
     spec:
+      # ---- ЭТОТ БЛОК ОЧИСТИТ СТАРЫЙ БИТЫЙ КЭШ С ДИСКОВ ----
+      initContainers:
+      - name: clear-broken-cache
+        image: busybox:1.36
+        command: ["sh", "-c", "rm -rf /var/lib/clickhouse/preprocessed_configs/* && chown -R 101:101 /var/lib/clickhouse"]
+        volumeMounts:
+        - name: ch-data
+          mountPath: /var/lib/clickhouse
+      # -----------------------------------------------------
       containers:
       - name: clickhouse-server
         image: clickhouse/clickhouse-server:25.3
@@ -137,6 +166,8 @@ spec:
           containerPort: 8123
         - name: native
           containerPort: 9000
+        - name: prometheus
+          containerPort: 9363
         volumeMounts:
         - name: config-volume
           mountPath: /etc/clickhouse-server/config.d/zookeeper.xml
@@ -152,6 +183,12 @@ spec:
           subPath: listen.xml
         - name: ch-data
           mountPath: /var/lib/clickhouse
+        - name: config-volume
+          mountPath: /etc/clickhouse-server/config.d/prometheus.xml
+          subPath: prometheus.xml
+        - name: config-volume
+          mountPath: /etc/clickhouse-server/users.d/users.xml
+          subPath: users.xml
       volumes:
       - name: config-volume
         configMap:

@@ -1,0 +1,14 @@
+-- 1. Создаем базу данных на всем кластере
+CREATE DATABASE IF NOT EXISTS test_db ON CLUSTER ch_cluster;
+
+-- 2. Создаем реплицируемую таблицу
+CREATE TABLE test_db.replicated_table ON CLUSTER ch_cluster
+(
+    id UInt64,
+    name String,
+    created_at DateTime
+)
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/test_db/replicated_table', '{replica}')
+PARTITION BY toYYYYMM(created_at)
+ORDER BY id;
+

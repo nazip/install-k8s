@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-external
+  namespace: clickhouse-25
+  labels:
+    app: clickhouse-server
+spec:
+  type: LoadBalancer # Этот тип заставит MetalLB выделить внешний IP
+  selector:
+    app: clickhouse-server # Нацеливаемся на те же самые поды ClickHouse
+  ports:
+  - name: http
+    port: 8123         # Внешний порт для Grafana / веб-клиентов
+    targetPort: 8123
+  - name: native
+    port: 9000         # Внешний порт для СУБД (DBeaver, clickhouse-client)
+    targetPort: 9000
+  - name: prometheus
+    port: 9363
+    targetPort: 9363
