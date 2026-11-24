@@ -1,3 +1,6 @@
+-- guide
+https://dev.to/shingaiz/from-disaster-to-recovery-a-practical-case-study-on-kubernetes-etcd-backups-52l6
+
 === on nfs server(install nfs) ===
 
 -- install nfs server
